@@ -1,0 +1,7 @@
+{:source-paths ["src"]
+ :dependencies []
+ :builds
+ {:cli {:target :node-script
+        :output-to "dist/codelab.js"
+        :main codelab.core/main
+        :compiler-options {:optimizations :advanced}}}}
