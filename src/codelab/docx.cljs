@@ -9,6 +9,9 @@
 ;; Sharp uses default export - require dynamically
 (def sharp (js/require "sharp"))
 
+;; Chart.js canvas renderer
+(def ChartJSNodeCanvas (.-ChartJSNodeCanvas (js/require "chartjs-node-canvas")))
+
 ;; Import docx.js classes
 (def Document (.-Document docx))
 (def Paragraph (.-Paragraph docx))
@@ -466,6 +469,42 @@
                           :insideV code-border}
                 :width {:size 9360 :type (.-DXA WidthType)}}))))))
 
+;; Chart colors
+(def chart-colors
+  ["#4285F4" "#EA4335" "#FBBC04" "#34A853" "#FF6D01" "#46BDC6"
+   "#7B1FA2" "#C2185B" "#00897B" "#6D4C41"])
+
+(defn render-chart
+  "Render a chart definition to a PNG buffer (returns Promise)"
+  [chart-json]
+  (let [config (js/JSON.parse chart-json)
+        chart-type (or (.-type config) "bar")
+        title (.-title config)
+        labels (js->clj (.-labels config))
+        datasets (js->clj (.-datasets config) :keywordize-keys true)
+        width (or (.-width config) 700)
+        height (or (.-height config) 400)
+        canvas (ChartJSNodeCanvas. (clj->js {:width width :height height
+                                              :backgroundColour "white"}))
+        chart-config (clj->js
+                      {:type chart-type
+                       :data {:labels labels
+                              :datasets (vec (map-indexed
+                                             (fn [i ds]
+                                               {:label (:label ds)
+                                                :data (:data ds)
+                                                :backgroundColor (nth chart-colors (mod i (count chart-colors)))
+                                                :borderColor (nth chart-colors (mod i (count chart-colors)))
+                                                :borderWidth 1})
+                                             datasets))}
+                       :options {:responsive false
+                                 :plugins {:title {:display (some? title)
+                                                   :text (or title "")
+                                                   :font {:size 16}}
+                                           :legend {:position "bottom"}}
+                                 :scales {:y {:beginAtZero true}}}})]
+    (.renderToBuffer canvas chart-config)))
+
 (defn- create-image-block
   "Create an image block with empty lines before and after"
   [node base-dir processed-images]
@@ -633,13 +672,71 @@
                   (conj result node)
                   instance)))))))
 
+(defn- collect-charts
+  "Collect all chart nodes from AST, returns list of {:index N :content json}"
+  [ast]
+  (let [counter (atom 0)]
+    (reduce (fn [acc node]
+              (if (= :chart (:type node))
+                (let [idx @counter]
+                  (swap! counter inc)
+                  (conj acc {:index idx :content (:content node)}))
+                (if (:children node)
+                  (into acc (collect-charts {:children (:children node)}))
+                  acc)))
+            []
+            (:children ast))))
+
+(defn- process-all-charts
+  "Render all charts to PNG buffers. Returns Promise of {index -> buffer}"
+  [ast]
+  (let [charts (collect-charts ast)]
+    (if (empty? charts)
+      (js/Promise.resolve {})
+      (-> (js/Promise.all
+           (clj->js (map (fn [{:keys [index content]}]
+                           (-> (render-chart content)
+                               (.then (fn [buf] #js [index buf]))
+                               (.catch (fn [err]
+                                         (js/console.error "Chart render error:" err)
+                                         #js [index nil]))))
+                         charts)))
+          (.then (fn [results]
+                   (into {} (map (fn [r] [(aget r 0) (aget r 1)]) results))))))))
+
 (defn generate-docx
   "Generate DOCX document from AST. Returns a Promise."
   [ast base-dir]
-  (-> (process-all-images ast base-dir)
-      (.then (fn [processed-images]
-               (let [[children _] (annotate-list-instances (:children ast))
-                     content-elements (mapcat #(block-node->elements % base-dir processed-images) children)]
+  (-> (js/Promise.all #js [(process-all-images ast base-dir)
+                            (process-all-charts ast)])
+      (.then (fn [results]
+               (let [processed-images (aget results 0)
+                     chart-buffers (aget results 1)
+                     chart-counter (atom 0)
+                     [children _] (annotate-list-instances (:children ast))
+                     content-elements (mapcat (fn [node]
+                                               (if (= :chart (:type node))
+                                                 (let [idx @chart-counter
+                                                       _ (swap! chart-counter inc)
+                                                       buf (get chart-buffers idx)]
+                                                   (if buf
+                                                     (let [dimensions (imageSize buf)
+                                                           width (min 500 (.-width dimensions))
+                                                           scale (/ width (.-width dimensions))
+                                                           height (js/Math.round (* (.-height dimensions) scale))]
+                                                       [(make-paragraph [] {})
+                                                        (make-paragraph
+                                                         [(ImageRun.
+                                                           (clj->js {:data buf
+                                                                     :transformation {:width width :height height}
+                                                                     :type "png"}))]
+                                                         {:alignment (.-CENTER AlignmentType)})
+                                                        (make-paragraph [] {})])
+                                                     [(make-paragraph
+                                                       [(make-text-run "[Chart render failed]" {:color "FF0000"})]
+                                                       {})]))
+                                                 (block-node->elements node base-dir processed-images)))
+                                             children)]
                  (Document.
                   (clj->js
                    {:styles {:default {:document {:run {:font {:name font-default}

@@ -5,7 +5,7 @@
 ;; Node types for AST
 (def node-types
   #{:document :step :paragraph :heading
-    :text :bold :italic :code :code-block :terminal
+    :text :bold :italic :code :code-block :terminal :chart
     :list :list-item :link :image :image-block :table
     :infobox-positive :infobox-negative
     :meta-duration :meta-environment})
@@ -256,12 +256,16 @@
             ;; Code block
             (starts-code-block? line)
             (let [[_ lang] (re-matches #"^```(\w*).*$" line)
-                  {:keys [code remaining lang]} (collect-code-block rest-lines lang)
-                  block-type (if (= lang "console") :terminal :code-block)]
-              (recur remaining
-                     (conj blocks {:type block-type
-                                   :lang lang
-                                   :content code})))
+                  {:keys [code remaining lang]} (collect-code-block rest-lines lang)]
+              (if (= lang "chart")
+                (recur remaining
+                       (conj blocks {:type :chart
+                                     :content code}))
+                (let [block-type (if (= lang "console") :terminal :code-block)]
+                  (recur remaining
+                         (conj blocks {:type block-type
+                                       :lang lang
+                                       :content code})))))
 
             ;; Infobox
             (parse-infobox-start line)
