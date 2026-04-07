@@ -2,3 +2,14 @@ node_modules/
 .shadow-cljs/
 dist/
 .~lock.*
+
+# Generated/test output
+archive/
+lo-extracted/
+public/
+reference/
+
+# Tutorial content (separate repos)
+mulesoft-tutorial/
+mulesoft-tutorial-2/
+mulesoft-tutorial-3/

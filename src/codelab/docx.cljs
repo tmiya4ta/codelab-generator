@@ -624,6 +624,26 @@
      (create-content-table (:rows node))
      (make-paragraph [] {})]  ;; Empty line after
 
+    :chart
+    (let [chart-key (str "__chart_" (:chart-index node))
+          buf (get processed-images chart-key)]
+      (if buf
+        (let [dimensions (imageSize buf)
+              width (min 500 (.-width dimensions))
+              scale (/ width (.-width dimensions))
+              height (js/Math.round (* (.-height dimensions) scale))]
+          [(make-paragraph [] {})
+           (make-paragraph
+            [(ImageRun.
+              (clj->js {:data buf
+                        :transformation {:width width :height height}
+                        :type "png"}))]
+            {:alignment (.-CENTER AlignmentType)})
+           (make-paragraph [] {})])
+        [(make-paragraph
+          [(make-text-run "[Chart render failed]" {:color "FF0000"})]
+          {})]))
+
     :image-block
     (create-image-block node base-dir processed-images)
 
@@ -672,20 +692,23 @@
                   (conj result node)
                   instance)))))))
 
+(defn- collect-charts*
+  "Recursively collect chart nodes from AST children"
+  [nodes]
+  (reduce (fn [acc node]
+            (if (= :chart (:type node))
+              (conj acc (:content node))
+              (if (:children node)
+                (into acc (collect-charts* (:children node)))
+                acc)))
+          []
+          nodes))
+
 (defn- collect-charts
   "Collect all chart nodes from AST, returns list of {:index N :content json}"
   [ast]
-  (let [counter (atom 0)]
-    (reduce (fn [acc node]
-              (if (= :chart (:type node))
-                (let [idx @counter]
-                  (swap! counter inc)
-                  (conj acc {:index idx :content (:content node)}))
-                (if (:children node)
-                  (into acc (collect-charts {:children (:children node)}))
-                  acc)))
-            []
-            (:children ast))))
+  (let [contents (collect-charts* (:children ast))]
+    (map-indexed (fn [i c] {:index i :content c}) contents)))
 
 (defn- process-all-charts
   "Render all charts to PNG buffers. Returns Promise of {index -> buffer}"
@@ -704,6 +727,22 @@
           (.then (fn [results]
                    (into {} (map (fn [r] [(aget r 0) (aget r 1)]) results))))))))
 
+(defn- annotate-chart-indices
+  "Add :chart-index to each :chart node in AST (depth-first)"
+  [nodes]
+  (let [counter (atom 0)]
+    (letfn [(walk [nodes]
+              (mapv (fn [node]
+                      (if (= :chart (:type node))
+                        (let [idx @counter]
+                          (swap! counter inc)
+                          (assoc node :chart-index idx))
+                        (if (:children node)
+                          (update node :children walk)
+                          node)))
+                    nodes))]
+      (walk nodes))))
+
 (defn generate-docx
   "Generate DOCX document from AST. Returns a Promise."
   [ast base-dir]
@@ -712,31 +751,17 @@
       (.then (fn [results]
                (let [processed-images (aget results 0)
                      chart-buffers (aget results 1)
-                     chart-counter (atom 0)
-                     [children _] (annotate-list-instances (:children ast))
-                     content-elements (mapcat (fn [node]
-                                               (if (= :chart (:type node))
-                                                 (let [idx @chart-counter
-                                                       _ (swap! chart-counter inc)
-                                                       buf (get chart-buffers idx)]
-                                                   (if buf
-                                                     (let [dimensions (imageSize buf)
-                                                           width (min 500 (.-width dimensions))
-                                                           scale (/ width (.-width dimensions))
-                                                           height (js/Math.round (* (.-height dimensions) scale))]
-                                                       [(make-paragraph [] {})
-                                                        (make-paragraph
-                                                         [(ImageRun.
-                                                           (clj->js {:data buf
-                                                                     :transformation {:width width :height height}
-                                                                     :type "png"}))]
-                                                         {:alignment (.-CENTER AlignmentType)})
-                                                        (make-paragraph [] {})])
-                                                     [(make-paragraph
-                                                       [(make-text-run "[Chart render failed]" {:color "FF0000"})]
-                                                       {})]))
-                                                 (block-node->elements node base-dir processed-images)))
-                                             children)]
+                     ;; Merge chart buffers into processed-images as "__chart_N"
+                     all-images (reduce (fn [m [idx buf]]
+                                          (if buf
+                                            (assoc m (str "__chart_" idx) buf)
+                                            m))
+                                        processed-images
+                                        chart-buffers)
+                     ;; Annotate chart nodes with indices
+                     annotated-children (annotate-chart-indices (:children ast))
+                     [children _] (annotate-list-instances annotated-children)
+                     content-elements (mapcat #(block-node->elements % base-dir all-images) children)]
                  (Document.
                   (clj->js
                    {:styles {:default {:document {:run {:font {:name font-default}
