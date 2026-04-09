@@ -162,12 +162,46 @@
     :else
     []))
 
+(def ^:private border-pad 12)    ; white padding outside the border
+(def ^:private border-width 3)   ; border stroke thickness
+(def ^:private border-color #js {:r 170 :g 170 :b 170 :alpha 1}) ; #AAAAAA
+
 (defn- process-image-async
-  "Process a single image with sharp: trim whitespace and return buffer"
+  "Process a single image with sharp: trim whitespace, add white padding and gray border"
   [image-path]
-  (-> (sharp image-path)
-      (.trim)
-      (.toBuffer)))
+  (let [offset (+ border-pad border-width)]
+    (-> (sharp image-path)
+        (.trim)
+        (.toBuffer)
+        (.then
+         (fn [trimmed-buf]
+           (let [img (sharp trimmed-buf)]
+             (-> (.metadata img)
+                 (.then
+                  (fn [meta]
+                    (let [w (.-width meta)
+                          h (.-height meta)
+                          canvas-w (+ w (* offset 2))
+                          canvas-h (+ h (* offset 2))
+                          ;; Create border rectangle as SVG overlay
+                          x1 border-pad
+                          y1 border-pad
+                          x2 (- canvas-w border-pad 1)
+                          y2 (- canvas-h border-pad 1)
+                          svg (str "<svg width=\"" canvas-w "\" height=\"" canvas-h "\">"
+                                   "<rect x=\"" x1 "\" y=\"" y1
+                                   "\" width=\"" (- x2 x1) "\" height=\"" (- y2 y1)
+                                   "\" fill=\"none\" stroke=\"#AAAAAA\" stroke-width=\"" border-width "\"/>"
+                                   "</svg>")]
+                      (-> (sharp trimmed-buf)
+                          (.extend #js {:top offset :bottom offset
+                                        :left offset :right offset
+                                        :background #js {:r 255 :g 255 :b 255 :alpha 1}})
+                          (.composite (clj->js [{:input (js/Buffer.from svg)
+                                                 :top 0 :left 0}]))
+                          (.png)
+                          (.toBuffer))))))))))))
+
 
 (defn process-all-images
   "Process all images in AST, returns Promise of {path -> buffer} map"
@@ -617,7 +651,10 @@
      (make-paragraph [] {})]  ;; Empty line after
 
     :list
-    (create-list (:children node) (:ordered node) base-dir processed-images nil (:instance-id node))
+    (concat
+     [(make-paragraph [] {})]  ;; Empty line before
+     (create-list (:children node) (:ordered node) base-dir processed-images nil (:instance-id node))
+     [(make-paragraph [] {})])  ;; Empty line after
 
     :table
     [(make-paragraph [] {})  ;; Empty line before
