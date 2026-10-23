@@ -164,13 +164,15 @@
 
 (def ^:private border-pad 12)    ; white padding outside the border
 (def ^:private border-width 3)   ; border stroke thickness
+(def ^:private inner-pad 20)     ; white gap between the border and the image content
 (def ^:private border-color #js {:r 170 :g 170 :b 170 :alpha 1}) ; #AAAAAA
 
 (defn- process-image-async
-  "Process a single image with sharp: trim whitespace, add white padding and gray border"
+  "Process a single image with sharp: trim whitespace, add white padding and gray border
+   (with a gap of inner-pad between the border and the content)"
   [image-path]
   ;; ^js hints keep sharp's method names (trim/png/...) from being renamed in release builds
-  (let [offset (+ border-pad border-width)
+  (let [offset (+ border-pad border-width inner-pad)
         ^js src (sharp image-path)]
     (-> ^js (.trim src)
         (.toBuffer)
