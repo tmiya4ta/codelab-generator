@@ -169,16 +169,17 @@
 (defn- process-image-async
   "Process a single image with sharp: trim whitespace, add white padding and gray border"
   [image-path]
-  (let [offset (+ border-pad border-width)]
-    (-> (sharp image-path)
-        (.trim)
+  ;; ^js hints keep sharp's method names (trim/png/...) from being renamed in release builds
+  (let [offset (+ border-pad border-width)
+        ^js src (sharp image-path)]
+    (-> ^js (.trim src)
         (.toBuffer)
         (.then
          (fn [trimmed-buf]
-           (let [img (sharp trimmed-buf)]
+           (let [^js img (sharp trimmed-buf)]
              (-> (.metadata img)
                  (.then
-                  (fn [meta]
+                  (fn [^js meta]
                     (let [w (.-width meta)
                           h (.-height meta)
                           canvas-w (+ w (* offset 2))
@@ -192,15 +193,15 @@
                                    "<rect x=\"" x1 "\" y=\"" y1
                                    "\" width=\"" (- x2 x1) "\" height=\"" (- y2 y1)
                                    "\" fill=\"none\" stroke=\"#AAAAAA\" stroke-width=\"" border-width "\"/>"
-                                   "</svg>")]
-                      (-> (sharp trimmed-buf)
-                          (.extend #js {:top offset :bottom offset
-                                        :left offset :right offset
-                                        :background #js {:r 255 :g 255 :b 255 :alpha 1}})
-                          (.composite (clj->js [{:input (js/Buffer.from svg)
-                                                 :top 0 :left 0}]))
-                          (.png)
-                          (.toBuffer))))))))))))
+                                   "</svg>")
+                          ^js base (sharp trimmed-buf)
+                          ^js extended (.extend base #js {:top offset :bottom offset
+                                                          :left offset :right offset
+                                                          :background #js {:r 255 :g 255 :b 255 :alpha 1}})
+                          ^js composited (.composite extended (clj->js [{:input (js/Buffer.from svg)
+                                                                         :top 0 :left 0}]))
+                          ^js png (.png composited)]
+                      (.toBuffer png)))))))))))
 
 
 (defn process-all-images
@@ -213,8 +214,9 @@
            (clj->js (map (fn [p]
                            (-> (process-image-async p)
                                (.then (fn [buf] #js [p buf]))
-                               (.catch (fn [_err]
+                               (.catch (fn [err]
                                          ;; On error, use original file
+                                         (js/console.warn (str "Image processing failed, using original: " p " (" (.-message err) ")"))
                                          #js [p (fs/readFileSync p)]))))
                          paths)))
           (.then (fn [results]
