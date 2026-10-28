@@ -1,8 +1,12 @@
 {
   "name": "codelab-generator",
-  "version": "1.0.0",
-  "description": "Generate Codelab-format DOCX from Markdown",
+  "version": "1.1.0",
+  "description": "Generate Codelab-format DOCX and HTML from Markdown",
   "main": "dist/codelab.js",
+  "files": [
+    "dist/",
+    "resources/"
+  ],
   "bin": {
     "codelab-gen": "dist/codelab.js"
   },
@@ -25,7 +29,8 @@
     "codelab",
     "google-docs",
     "markdown",
-    "docx"
+    "docx",
+    "html"
   ],
   "license": "MIT"
 }

@@ -1,0 +1,281 @@
+<!--
+Copyright (c) 2016 Google Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not
+use this file except in compliance with the License. You may obtain a copy of
+the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+License for the specific language governing permissions and limitations under
+the License.
+-->
+<!doctype html>
+<!-- claat の html テンプレート (googlecodelabs/tools、Apache License 2.0) に、日本語で読みやすい見た目を足したもの。
+     codelab-generator が二重の波かっこの部分 (title、id、feedback、steps) を置き換える -->
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>{{title}}</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="elements/codelab-elements.css">
+  <!-- 読みやすさの調整 (日本語の本文、広い紙面、表・画像・コード)。 codelab-elements の上に重ねる -->
+  <link rel="stylesheet" href="//fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+  <style>
+    :root {
+      --cl-ink: #1d2733;
+      --cl-ink-2: #3e4c5c;
+      --cl-ink-3: #6b7888;
+      --cl-line: #dfe5ec;
+      --cl-soft: #f3f6fa;
+      --cl-accent: #0b62c4;
+      --cl-accent-soft: #e8f1fc;
+      --cl-ok: #1a7f4b;
+      --cl-ok-soft: #e9f6ef;
+      --cl-warn: #a35c00;
+      --cl-warn-soft: #fff4e0;
+      --cl-sans: "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+      --cl-mono: "JetBrains Mono", "Source Code Pro", ui-monospace, Menlo, Consolas, monospace;
+    }
+    body, google-codelab, google-codelab #codelab-title, google-codelab #drawer,
+    google-codelab-step .instructions, google-codelab-step h2.step-title {
+      font-family: var(--cl-sans) !important;
+    }
+    google-codelab #main { background: #eef1f5; }
+
+    /* 上部バー: 残り時間は出さない */
+    google-codelab #codelab-title { box-shadow: 0 1px 0 var(--cl-line); }
+    google-codelab #codelab-title h1.title { font-weight: 500; font-size: 18px; color: var(--cl-ink); }
+    google-codelab #codelab-time-container { display: none; }
+
+    /* 下の Back / Next: 浮かせず帯にして、 本文 (画像) に重ならないようにする */
+    google-codelab #controls {
+      bottom: 0 !important; padding: 12px 0; z-index: 5;
+      background: rgba(238, 241, 245, .94); border-top: 1px solid var(--cl-line);
+      -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    }
+
+    /* 左の目次: 少し広く、 詰めて、 下の「Report a mistake」は消す */
+    google-codelab #drawer { width: 300px; }
+    google-codelab #drawer .metadata { display: none; }
+    google-codelab #drawer .steps ol li a { font-size: 13.5px; line-height: 1.45; padding-top: 7px !important; padding-bottom: 7px !important; min-height: 0 !important; }
+    google-codelab #drawer .steps ol li { margin-bottom: 8px; }
+
+    /* 紙面。 余白は 4 / 8 / 16 / 24 / 32 / 48 / 64px の段階だけを使う (refactoring-ui)。
+       文章の列は 1 行 40 字前後に絞り (日本語の読みやすい長さ)、 図と表だけ紙面の幅まで広げる。 */
+    google-codelab-step .instructions,
+    google-codelab:not([theme="minimal"]) google-codelab-step .instructions {
+      max-width: min(1000px, calc(100% - 40px)) !important;
+      font-size: 16.5px;
+      line-height: 1.9;
+      letter-spacing: .03em;
+      color: var(--cl-ink);
+      border-radius: 12px;
+      box-shadow: 0 1px 2px rgba(20, 30, 50, .06), 0 8px 24px rgba(20, 30, 50, .05);
+    }
+    google-codelab-step .instructions .inner { padding: 48px 64px 64px; }
+    google-codelab-step .instructions .inner > :not(.image-container):not(table):not(pre) { max-width: 42em; }
+    google-codelab-step h2.step-title {
+      font-size: 28px !important;
+      font-weight: 700 !important;
+      line-height: 1.35 !important;
+      letter-spacing: .01em;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--cl-line);
+      margin: 0 0 32px !important;
+    }
+    google-codelab-step .instructions h2:not(.step-title),
+    google-codelab-step .instructions h3 {
+      font-size: 20px; font-weight: 700; line-height: 1.4; letter-spacing: .02em;
+      margin: 48px 0 16px !important; padding: 0 !important; border: 0 !important;
+    }
+    google-codelab-step .instructions p { margin: 0 0 16px; }
+    /* claat は手順 1 つごとに <ol> を作る。 手順どうしは 24px、 手順の中の行は 8px */
+    google-codelab-step .instructions ol, google-codelab-step .instructions ul { margin: 0 0 24px; padding-left: 28px; }
+    google-codelab-step .instructions li { margin: 0 0 8px; padding-left: 4px; }
+    google-codelab-step .instructions li:last-child { margin-bottom: 0; }
+    google-codelab-step .instructions li > p { margin: 0; }
+    google-codelab-step .instructions ol > li::marker { font-weight: 700; color: var(--cl-accent); }
+    google-codelab-step .instructions strong { font-weight: 700; color: #0f1b29; }
+    google-codelab-step .instructions a { color: var(--cl-accent); }
+
+    /* 文中のコード: 本文と大きさをそろえ、 枠で区切る */
+    google-codelab-step code {
+      font-family: var(--cl-mono) !important;
+      font-size: .86em !important;
+      background: var(--cl-soft) !important;
+      border: 1px solid var(--cl-line);
+      border-radius: 5px;
+      padding: .12em .42em !important;
+      color: #19324f;
+      word-break: break-all;
+    }
+    /* コードブロック: 送るプロンプトもここ。 色分けはせず、 コピーボタンを付ける */
+    google-codelab-step pre {
+      position: relative;
+      background: #1f2a37 !important;
+      border-radius: 8px !important;
+      padding: 16px 88px 16px 24px !important;
+      line-height: 1.7 !important;
+      margin: 0 0 24px 28px !important; max-width: calc(42em - 28px);
+    }
+    google-codelab-step pre > code {
+      border: 0; background: transparent !important; padding: 0 !important;
+      color: #eef3f8 !important; font-size: 13.5px !important; white-space: pre-wrap; word-break: break-word;
+    }
+    google-codelab-step pre.cl-plain code * { color: inherit !important; font-style: normal !important; }
+    .cl-copy {
+      position: absolute; top: 8px; right: 8px;
+      font: 500 12px var(--cl-sans); color: #dbe6f2;
+      background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18);
+      border-radius: 6px; padding: 3px 9px; cursor: pointer;
+    }
+    .cl-copy:hover { background: rgba(255,255,255,.16); }
+    .cl-copy.is-done { color: #9be3b8; border-color: rgba(155,227,184,.5); }
+
+    /* 表: 1 行目を見出しにし、 罫線と余白を整える */
+    /* 画像と同じく手順の文字位置まで字下げし、 中身に合わせた幅にする */
+    google-codelab-step table {
+      width: auto !important; max-width: calc(100% - 28px); border-collapse: separate; border-spacing: 0;
+      border: 1px solid var(--cl-line); border-radius: 8px; overflow: hidden;
+      margin: 0 0 32px 28px !important; font-size: 15px;
+    }
+    google-codelab-step table td, google-codelab-step table th {
+      border: 0; border-bottom: 1px solid var(--cl-line);
+      padding: 8px 16px; vertical-align: top; text-align: left; line-height: 1.7;
+    }
+    google-codelab-step table tr:last-child td { border-bottom: 0; }
+    google-codelab-step table td p { margin: 0; }
+    google-codelab-step table tr.cl-head td {
+      background: var(--cl-soft); font-weight: 700; color: var(--cl-ink-2);
+      font-size: 13px; letter-spacing: .06em; padding-top: 8px; padding-bottom: 8px;
+    }
+    google-codelab-step table tr:not(.cl-head) td:first-child { color: var(--cl-ink-2); white-space: nowrap; }
+    google-codelab-step table td + td { padding-left: 24px; }
+
+    /* 画面の写真: 枠と影で紙面から切り離し、 alt を説明として下に出す。 クリックで拡大 */
+    /* 手順の文字位置に合わせて字下げし、 淡い台紙に載せて「直前の手順の図」と分かるようにする */
+    google-codelab-step .image-container {
+      margin: 8px 0 32px 28px !important; padding: 16px 16px 8px;
+      background: var(--cl-soft); border: 1px solid var(--cl-line);
+      border-radius: 12px; text-align: left;
+    }
+    google-codelab-step .image-container img {
+      display: block; max-width: 100% !important; height: auto !important;
+      border: 1px solid var(--cl-line); border-radius: 6px; background: #fff;
+      box-shadow: 0 1px 6px rgba(20, 30, 50, .08);
+      cursor: zoom-in;
+    }
+    .cl-caption { display: block; margin-top: 8px; font-size: 13px; line-height: 1.6; color: var(--cl-ink-3); }
+    .cl-caption::before { content: "図 · "; color: var(--cl-accent); font-weight: 500; }
+    .cl-lightbox {
+      position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center;
+      background: rgba(12, 18, 28, .82); cursor: zoom-out; padding: 24px;
+    }
+    .cl-lightbox img { max-width: 100%; max-height: 100%; border-radius: 6px; box-shadow: 0 10px 40px rgba(0,0,0,.4); background: #fff; }
+
+    /* 補足の囲み (positive / negative) */
+    google-codelab-step aside.special, google-codelab-step aside.warning {
+      border-radius: 8px; padding: 16px 24px; margin: 0 0 24px 28px !important; border: 0; border-left: 4px solid;
+      font-size: 15px; line-height: 1.8;
+    }
+    google-codelab-step aside.special { background: var(--cl-ok-soft); border-left-color: var(--cl-ok); color: #134a2f; }
+    google-codelab-step aside.warning { background: var(--cl-warn-soft); border-left-color: var(--cl-warn); color: #5a3500; }
+    google-codelab-step aside p { margin: 0; }
+
+    @media (max-width: 800px) {
+      google-codelab-step .instructions .inner { padding: 24px 16px 32px; }
+      google-codelab-step .instructions { font-size: 16px; }
+      google-codelab-step pre, google-codelab-step aside.special, google-codelab-step aside.warning { margin-left: 0 !important; }
+      google-codelab-step table tr:not(.cl-head) td:first-child { white-space: normal; }
+      google-codelab-step .image-container { margin-left: 0 !important; padding: 8px 8px 6px; }
+      google-codelab-step table { margin-left: 0 !important; max-width: 100%; }
+    }
+  </style>
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab id="{{id}}"
+                  title="{{title}}"
+                  feedback-link="{{feedback}}">
+{{steps}}
+  </google-codelab>
+
+  <script src="elements/native-shim.js"></script>
+  <script src="elements/custom-elements.min.js"></script>
+  <script src="elements/prettify.js"></script>
+  <script src="elements/codelab-elements.js"></script>
+
+  <script>
+    // 読みやすさの調整 (表の見出し行、 画像の説明と拡大、 コードのコピー、 プロンプトの色分けを外す)。
+    // codelab-elements が描画したあとに当てる。 何度呼んでもよい。
+    (function () {
+      function enhance() {
+        document.querySelectorAll("google-codelab-step table").forEach(function (t) {
+          var first = t.querySelector("tr");
+          if (first && !t.querySelector("th")) first.classList.add("cl-head");
+        });
+        document.querySelectorAll("google-codelab-step .image-container img").forEach(function (img) {
+          if (img.dataset.clDone) return;
+          img.dataset.clDone = "1";
+          var alt = (img.getAttribute("alt") || "").trim();
+          if (alt) {
+            var cap = document.createElement("span");
+            cap.className = "cl-caption";
+            cap.textContent = alt;
+            img.insertAdjacentElement("afterend", cap);
+          }
+          img.addEventListener("click", function () {
+            var box = document.createElement("div");
+            box.className = "cl-lightbox";
+            var big = document.createElement("img");
+            big.src = img.src; big.alt = alt;
+            box.appendChild(big);
+            var close = function () { box.remove(); document.removeEventListener("keydown", onKey); };
+            var onKey = function (e) { if (e.key === "Escape") close(); };
+            box.addEventListener("click", close);
+            document.addEventListener("keydown", onKey);
+            document.body.appendChild(box);
+          });
+        });
+        document.querySelectorAll("google-codelab-step pre").forEach(function (pre) {
+          if (pre.dataset.clDone) return;
+          var code = pre.querySelector("code");
+          if (!code) return;
+          // 言語の指定が無いブロック (送るプロンプトなど) は自動の色分けを外す
+          if (!/language-|lang-/.test(code.className + " " + pre.className)) pre.classList.add("cl-plain");
+          pre.dataset.clDone = "1";
+          var btn = document.createElement("button");
+          btn.type = "button"; btn.className = "cl-copy"; btn.textContent = "Copy";
+          btn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            var text = code.innerText.replace(/\n$/, "");
+            var done = function () { btn.textContent = "Copied"; btn.classList.add("is-done");
+              setTimeout(function () { btn.textContent = "Copy"; btn.classList.remove("is-done"); }, 1400); };
+            if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function () {});
+            else { var r = document.createRange(); r.selectNodeContents(code); var s = getSelection(); s.removeAllRanges(); s.addRange(r); document.execCommand("copy"); s.removeAllRanges(); done(); }
+          });
+          pre.appendChild(btn);
+        });
+      }
+      var tries = 0;
+      var timer = setInterval(function () { enhance(); if (++tries > 20) clearInterval(timer); }, 300);
+      window.addEventListener("hashchange", function () { setTimeout(enhance, 50); });
+    })();
+  </script>
+
+</body>
+</html>

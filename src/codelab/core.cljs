@@ -1,25 +1,29 @@
 (ns codelab.core
-  "CLI entry point for Codelab DOCX generator"
+  "CLI entry point for Codelab DOCX / HTML generator"
   (:require ["fs" :as fs]
             ["path" :as path]
             [codelab.meta :as meta]
             [codelab.parser :as parser]
-            [codelab.docx :as docx]))
+            [codelab.docx :as docx]
+            [codelab.html :as html]))
 
-(def version "1.0.0")
+(def version "1.1.0")
 
 (defn- print-usage []
   (println "
-Codelab DOCX Generator v" version "
+Codelab Generator v" version "
 
-Usage: codelab-gen <input.md> [-o <output.docx>]
+Usage: codelab-gen <input.md> [-f docx|html] [-o <output>]
 
 Arguments:
   input.md     Input markdown file (Codelab format)
-  -o, --output Output DOCX file (default: <input>.docx)
+  -f, --format Output format: docx (default) or html
+  -o, --output DOCX: output file (default: <input>.docx)
+               HTML: output directory (default: <id>/), gets index.html, img/ and elements/
 
 Example:
   codelab-gen my-codelab.md -o my-codelab.docx
+  codelab-gen my-codelab.md -f html -o out/my-codelab
 
 Markdown Format:
   ---
@@ -40,7 +44,7 @@ Markdown Format:
   "Parse command line arguments"
   [args]
   (loop [remaining args
-         result {:input nil :output nil}]
+         result {:input nil :output nil :format "docx"}]
     (if (empty? remaining)
       result
       (let [arg (first remaining)
@@ -53,6 +57,10 @@ Markdown Format:
           (recur (rest rest-args)
                  (assoc result :output (first rest-args)))
 
+          (or (= arg "-f") (= arg "--format"))
+          (recur (rest rest-args)
+                 (assoc result :format (first rest-args)))
+
           (nil? (:input result))
           (recur rest-args
                  (assoc result :input arg))
@@ -61,8 +69,8 @@ Markdown Format:
           (recur rest-args result))))))
 
 (defn- generate
-  "Generate DOCX from markdown file"
-  [input-path output-path]
+  "Generate DOCX or HTML from markdown file"
+  [input-path output-path fmt]
   (if-not (fs/existsSync input-path)
     (do
       (println "Error: Input file not found:" input-path)
@@ -71,9 +79,13 @@ Markdown Format:
           base-dir (path/dirname (path/resolve input-path))
           {:keys [meta content]} (meta/parse-frontmatter content)
           ast (parser/parse content meta)]
-      ;; generate-docx now returns a Promise
-      (-> (docx/generate-docx ast base-dir)
-          (.then (fn [doc] (docx/save-docx doc output-path)))
+      (-> (if (= fmt "html")
+            (html/generate-html ast base-dir (or output-path (get meta "id")
+                                                 (path/basename input-path ".md")))
+            ;; generate-docx returns a Promise
+            (-> (docx/generate-docx ast base-dir)
+                (.then (fn [doc] (docx/save-docx doc (or output-path
+                                                         (str (path/basename input-path ".md") ".docx")))))))
           (.catch (fn [err]
                     (js/console.error "Error:" err)
                     (js/process.exit 1)))))))
@@ -88,6 +100,12 @@ Markdown Format:
       (:help args-only)
       (print-usage)
 
+      (not (#{"docx" "html"} (:format args-only)))
+      (do
+        (println "Error: Unknown format:" (:format args-only))
+        (print-usage)
+        (js/process.exit 1))
+
       (nil? (:input args-only))
       (do
         (println "Error: No input file specified")
@@ -95,8 +113,6 @@ Markdown Format:
         (js/process.exit 1))
 
       :else
-      (let [input (:input args-only)
-            output (or (:output args-only)
-                       (str (path/basename input ".md") ".docx"))]
-        (println "Converting:" input "→" output)
-        (generate input output)))))
+      (let [{:keys [input output format]} args-only]
+        (println "Converting:" input "→" (or output format))
+        (generate input output format)))))
